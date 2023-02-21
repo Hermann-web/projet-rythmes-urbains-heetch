@@ -1,0 +1,68 @@
+---
+title: "task1"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+## Load packages
+```{r LoadPackages}
+library(dplyr) 
+library(sf)
+library(leaflet)
+library(lubridate)
+library(mapsf)
+library(tidyr)
+```
+## Load data and project spatial features
+```{r LoadData}
+heetchPoints <-readRDS("../data/heetchmarchcrop.Rds")
+casaNeib <-st_read("../data/casaneib.geojson") 
+casaNeibProj <-st_transform(casaNeib, crs=26191)
+heetchPointsProj <-st_transform(heetchPoints, crs=26191)
+rm(heetchPoints)
+rm(casaNeib)
+#heetch_points_proj
+head(heetchPointsProj) #(driver_id, location_at_local_time, geometry)
+class(heetchPointsProj)
+str(heetchPointsProj)
+
+#heetch_points_proj
+head(casaNeibProj) #(driver_id, location_at_local_time, geometry)
+class(casaNeibProj)
+str(casaNeibProj)
+```
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+## Intersecter les points x et les quartiers y
+
+```{r IntersectPointsToNeib}
+casaNeibUnion <-st_union(casaNeibProj)
+selectPtsInCasa <-st_contains(x=casaNeibUnion, y=heetchPointsProj)%>% 
+  unlist() 
+
+heetchPointsProj <-heetchPointsProj[selectPtsInCasa,]
+ptsInNeib <-st_within(x=heetchPointsProj, y=casaNeibProj) %>% 
+  unlist() 
+heetchPointsProj$NEIB <-ptsInNeib
+rm(casaNeibUnion)
+rm(selectPtsInCasa)
+rm(ptsInNeib)
+saveRDS(heetchPointsProj, file = "../data/heetchmarchcropwithneib.Rds")
+head(heetchPointsProj) #(driver_id, location_at_local_time, geometry)
+str(heetchPointsProj)
+class(heetchPointsProj)
+```
+
+
+
