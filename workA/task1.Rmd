@@ -109,6 +109,37 @@ nrow(PeakHours) #198
 class(PeakHours) #Hour,NBNEIB
 head(PeakHours)
 ```
+## grouper par jour vs nuit 
+```{r day_vs_night}
+mainNeibNGrouped <-data.frame(mainNeibN)
+mainNeibNGrouped['GRP']<-100
+mainNeibNGrouped['GRP'][mainNeibNGrouped['Hour'] >=20 | mainNeibNGrouped['Hour'] < 4] <- 20
+mainNeibNGrouped['GRP'][mainNeibNGrouped['Hour'] >=4 & mainNeibNGrouped['Hour'] < 12] <- 4
+mainNeibNGrouped['GRP'][mainNeibNGrouped['Hour'] >=12 & mainNeibNGrouped['Hour'] < 20] <- 12
+nrow(mainNeibNGrouped) #606
+class(mainNeibNGrouped) #Hour,NBDRiver,NEIB,GRP
+head(mainNeibNGrouped)
+
+mainNeibNGrouped <-mainNeibNGrouped %>% 
+  group_by(GRP, NEIB) %>% 
+  summarize(NBDRiver=sum(NBDRiver))
+nrow(mainNeibNGrouped) #82
+class(mainNeibNGrouped) #NBDRiver,NEIB,GRP
+head(mainNeibNGrouped)
+
+```
+## Trouver les heures de pointes: jour vs nuit
+```{r PeakHours}
+PeakHoursGrouped <-mainNeibNGrouped %>% 
+  filter(NBDRiver>240) %>% 
+  select(GRP, NEIB) %>%
+  group_by(GRP) %>% 
+  summarize(NBNEIB=n())
+nrow(PeakHoursGrouped) #198
+class(PeakHoursGrouped) #GRP,NBNEIB
+head(PeakHoursGrouped)
+```
+
 ## Trouver les heures de pointes
 ```{r PeakHuours}
 # 8. Construire la matrice OD (origine-destination) pour le 1er Mars entre 7H et 8H du matin
