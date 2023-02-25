@@ -1,18 +1,42 @@
-# projet-rythmes-urbains-heetch
+# Projet Rythmes Urbains Heetch
+
+## Contexte
+- **Entreprise**: Heetch
+- **Source des données**: L'entreprise Heetch récupère les données de ses chaufeurs ont leur application ouverte
+- **Objectif**: savoir quel est la différence de trafic entre tel jour et tel autre (trafic = fct(temps))
+
+## Démarche
+On organisons le travail en 2 parties. La première identifie l'heure de pointe et les quartiers principaux à ces heures de pointes. Le seconde, 
+
+## Définitions
+- **Heure de pointe**: Heure à laquelle il y a des fortes concentrations de chauffeurs dans certaines villes
 
 
-# steps
-- definitions
-    - heure de pointe
-- carte: trouver un package qui represente des flux par (groupe de) temps
-- **workA: determiner une heure de pointe par quartier**
-    1. ~~fixer un jour: pour chaque heure, combien de drivers: determiner les heures de circulation (quand rien ne se passe, les gens dorment)
-    2. ~~fixer un jour: pour chaque heure, combien de drivers par quartier (=chauffeur en circulation?): heure de circulation par quartier        
-    3. fixer un jour: etendre les heures: jour vs nuit vs ...
-    4. ~~carte: pour chaque quartier, trouver l'heure où le nombre de points est le important
-- **workB: matrice OD sur l'heure de pointe**
-    1. fixer un jour: **pour chaque couple orienté de quartiers, combien de drivers
-    2. fixer une semaine: ~~sem vs **week-end (des moyennes per day): pour chaque couple orienté de quartiers, combien de drivers
-    3. **mat (hour, neib, nb_drivers) --> filter (nb_drivers>30) --> nb_neib=n() --> filter(nb_neib>..) --> (heuresDePointe)
-    4. **fixer un jour: pour l'heure de pointe, pour chaque couple orienté de quartiers, combien de drivers 
-    5. carte: pour chaque jour (une couleur), trouver le flux le plux important : fixer un seuil points pour le filtre
+## Partie 1: déterminer une heure de pointe par quartier
+
+### Data Loading
+#### fichier Rmd
+- [loadHeetch.Rmd](./data/loadHeetch.Rmd)
+#### Résumé
+- récupérer 
+    - les données des chauffeurs ``heetchmarchcrop.Rds`` (un ``sf`` contient des points) 
+    - et la répartition géographique des quartiers de casa ``casaneib.geojson``
+- transformer les données vers une projection correspondant à Casablanca (``crs=26191``)
+- Faire une intersection entre les deux bases de données afin 
+- générer un fichier final (``heetchmarchcropwithneib.Rds``) qui contient 
+    - les données de ``heetchmarchcrop.Rds`` en projection (``crs=26191``) 
+    - le quartier où le point a été retrouvé
+
+
+### Determiner une heure de pointe par quartier
+- les details sont dans le fichier: [task1.Rmd](./Mapping_Peak_Hours/main.Rmd) avec une vue [html](./Mapping_Peak_Hours/)
+![](res/map.png)
+Nombre de points en fonction du quartier
+
+## Partie 2: Determiner les flux 
+
+### Task1
+- les details sont dans le fichier: [OD](./OD/OD_jour.Rmd) avec une vue [html](./OD/OD_jour.html)
+
+### Task2
+- les details sont dans le fichier: [](./OD/OD_week.Rmd) avec une vue [html](./OD/OD_week.html)
