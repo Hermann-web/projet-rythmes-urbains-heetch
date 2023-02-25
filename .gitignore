@@ -1,6 +1,5 @@
 data/heetchmarchcrop.Rds
 data/heetchmarchcropwithneib.Rds
-others
 *.html
 
 # History files
