@@ -24,7 +24,8 @@ heetchPointsProj <-st_transform(heetchPoints, crs=26191)
 heetchPointsProj$Day <-day(heetchPointsProj$location_at_local_time)
 heetchPointsProj$Hour <-hour(heetchPointsProj$location_at_local_time)
 heetchM1Proj <-heetchPointsProj %>% 
-  filter(Day==1)
+  filter(Day==1) ##for task1: week-end
+  #filter(Day>0 & Day<8 ) ##for task2: week
 
 # 5. Intersecter les points x et les quartiers y ------
 

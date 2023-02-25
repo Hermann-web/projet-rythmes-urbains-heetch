@@ -25,8 +25,10 @@ library(ggplot2)
     - ``heetchmarchcropwithneib.Rds``: les données de heetch avec les quartiers associés
     - ``casaneib.geojson``: les quartiers de casa
     - ``casabound.geojson``: les bords de casa
+Please run the R file [loadHeetch.Rmd](./loadHeetch.Rmd) to create the file ``heetchmarchcropwithneib.Rds``
+
 ```{r LoadData}
-heetchPoints <-readRDS("../data/heetchmarchcropwithneib.Rds")
+heetchPoints <-readRDS("../data/heetchmarchcropwithneib.Rds") #Please run the R file [loadHeetch.Rmd](./loadHeetch.Rmd) to create the file ``heetchmarchcropwithneib.Rds``
 casaNeib <-st_read("../data/casaneib.geojson") 
 casaBound <- st_read("../data/casabound.geojson") #des poinrts qui forment une
 casaNeibProj <-st_transform(casaNeib, crs=26191)
