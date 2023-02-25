@@ -18,13 +18,16 @@ library(leaflet)
 library(lubridate)
 library(mapsf)
 library(tidyr)
+library(ggplot2)
 ```
 ## Load data and project spatial features
 ```{r LoadData}
 heetchPoints <-readRDS("../data/heetchmarchcropwithneib.Rds")
 casaNeib <-st_read("../data/casaneib.geojson") 
+casaBound <- st_read("../data/casabound.geojson") #des poinrts qui forment une
 casaNeibProj <-st_transform(casaNeib, crs=26191)
 heetchPointsProj <-st_transform(heetchPoints, crs=26191)
+casaBoundProj <-st_transform(casaBound, crs=26191)
 rm(heetchPoints)
 rm(casaNeib)
 #heetch_points_proj
@@ -36,6 +39,11 @@ str(heetchPointsProj)
 head(casaNeibProj) #(driver_id, location_at_local_time, geometry)
 class(casaNeibProj)
 str(casaNeibProj)
+
+
+plot(casaBound$geometry)#un plot de la géométrie
+class(casaBound)
+str(casaBound)
 ```
 
 # Pour chaque heure, combien de drivers
@@ -139,9 +147,99 @@ nrow(PeakHoursGrouped) #198
 class(PeakHoursGrouped) #GRP,NBNEIB
 head(PeakHoursGrouped)
 ```
+## get neib centroids 
+```{r plot1}
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+nrow(coordCentroids) #29
+class(coordCentroids) #X,Y
+head(coordCentroids)
+```
 
-## Trouver les heures de pointes
-```{r PeakHuours}
+## filter on the peak hour
+```{r filter_on_peak_hour}
+heetchM1ProjAtPeakHour<-heetchM1Proj %>% 
+  filter(Hour==22) 
+head(heetchM1ProjAtPeakHour) #(driver_id, location_at_local_time, geometry, NEIB, Day, Hour)
+str(heetchM1ProjAtPeakHour)
+nrow(heetchM1ProjAtPeakHour) #166259
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+plot(heetchM1ProjAtPeakHour$geometry, add=TRUE)
+```
+## create_casa_grid
+```{r create_casa_grid}
+# do a grid for aggregation 
+casa_grid = st_make_grid(casaBoundProj,
+                         cellsize = 1000, #mile au us et metre ailleurs
+                         n = c(50,60)
+) # une grille sur l'emprise de casabound #un obj sf
+plot(casa_grid) # plot the grid
+plot(casaBoundProj$geometry, add=TRUE) # add another plot 
+class(casa_grid) 
+```
+## plot11
+```{r plot11}
+my_fct_ggplot <- function(grid_geometry ){
+# create sample data
+data <- data.frame(
+  Name = polCentroids$NAME_4,
+  #Value = c(10, 20, 30),
+  geometry = grid_geometry
+)
+
+# convert to sf object
+sf_data <- st_as_sf(data)
+
+# create the map
+ggplot(sf_data) + geom_sf_text(aes(label = Name), size = 3, color = "red", fontface = "bold")
+}
+
+my_fct2 <- function(my_points_to_plot, grid_geometry ){
+# count the nb the point per cell
+# method 1: est-ce que les cellules(carreaux) contiennent les points
+#my_points_to_plot <- heetchM1ProjAtPeakHour#polCentroids
+inter_grid = st_contains(x = grid_geometry, y=my_points_to_plot) #la grille et les points 
+inter_grid[72] #le carreau 72 est vide
+inter_grid[73] #il va afficher les indexations des points: 882
+
+
+# create dataframe (cell_id, nb_of_points, geometry_of_the_cell)
+list_lengths_per_cell = sapply(X = inter_grid, FUN = length)
+casagrid_points = st_sf(ID_GRID = 1:length(list_lengths_per_cell),
+                        NB_POINTS = list_lengths_per_cell,
+                        geometry = grid_geometry)
+class(casagrid_points) #un obj sf et dataf --> cartographiable
+
+# create a carto ---
+# beaucoup de carreux en mers (avec nb_points=0) et ça etire la distribution
+casagrid_points_crop = casagrid_points %>% filter(NB_POINTS > 0)
+
+#mf_map(x = casaBoundProj,type = "base")
+mf_map(x=casagrid_points_crop,
+       var = "NB_POINTS",
+       type = "choro",
+       # 10 classes d'effectifs egaux pour eviter les pb lies aux outiliers
+       breaks = "quantile",
+       nbreaks = 10,
+       pal = rev(hcl.colors(n=10, palette = "Blues")), #un rev pour fnoce rle pire
+) 
+mf_map(x=casaNeibProj, add=TRUE, col="#2596be25", alpha=0.5) #neib
+mf_map(x=polCentroids, add = TRUE)
+my_fct_ggplot(grid_geometry)
+}
+
+my_fct2(heetchM1ProjAtPeakHour, casaNeibProj$geometry)
+```
+
+## plot1
+```{r plot1}
+my_fct2(heetchM1ProjAtPeakHour, casa_grid)
+```
+
+
+## Others
+```{r Others}
 # 8. Construire la matrice OD (origine-destination) pour le 1er Mars entre 7H et 8H du matin
 # mainNeibwide a comme colonne(driver_id, hours:00,01...)
 mainNeibwide <-mainNeib %>% 
