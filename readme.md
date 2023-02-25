@@ -40,3 +40,8 @@ Nombre de points en fonction du quartier
 
 ### Task2: OD_week vs week-end
 - les details sont dans le fichier: [OD_week](./workB/rendu/OD_week.Rmd) avec une vue [html](./workB/rendu/OD_week.html)
+
+## Others 
+## links
+- https://r-spatial.github.io/sf/articles/sf5.html
+- https://riatelab.github.io/mapsf/reference/mf_map.html
