@@ -244,7 +244,7 @@ my_fct_ggplot(grid_geometry)
 
 my_fct2(heetchM1ProjAtPeakHour, casaNeibProj$geometry)
 ```
-![]()
 
 ## Résultats
-On remarque que les villes 
+![](../res/map.png)
+On remarque que les villes ``Anfa``, ``El Maarif`` et ``Sidi Belyout`` contiennent les plus grandes concentrations à ``22h``

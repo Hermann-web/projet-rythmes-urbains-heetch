@@ -7,7 +7,9 @@ date: "2023-02-24"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Description
 
+Dans cette tache on s'interesse aux differentes interactions survenu au cours d'une semaine pour les jours ouvrables (lundi-vendredi) comparativement au weekend (samedi,dimanche). On construit ainsi la matrice Origine-Destination (OD) pour les utlisateurs durants differents plage horaires de la journée. Puis on affiche pour chaque matrice construite les flux sur une carte.
 
 ## 1. Load packages
 
@@ -27,6 +29,7 @@ library(tidyr)
 heetchPoints <-readRDS("DATA/heetchmarchcrop.Rds")
 casaNeib <-st_read("DATA/casaneib.geojson") 
 ```
+
 ## 3. Projetion les objets spatiaux
 
 ```{r spaceObject}
@@ -35,7 +38,8 @@ casaNeib <-st_read("DATA/casaneib.geojson")
 ```
 
 
-## 4. Créer la section du 1er au 7 Mars premiere semaine de Mars 2019 
+## 4. Créer la section du 1er au 7 Mars (premiere semaine de Mars 2019) 
+
 
 - Conversion Day, Hour, year 
 
@@ -71,6 +75,8 @@ heetchM1ProjWeekend <-heetchPointsProj %>%
 casaNeibUnion <-st_union(casaNeibProj)
 
 ```
+
+On compte de nombre de points par quartier pour jour ouvrable (week) et weekend
 
 ### 5.1 week
 
@@ -411,3 +417,5 @@ arrows(selecFlowsWeekend$XORI,
        code=2)
 
 ```
+
+Remarque: Globalement on constate que les flux de circulation sont beaucoup plus important les jours ouvrables que les weekends.

@@ -1,5 +1,5 @@
 ---
-title: "Task1:"
+title: "Task1:OD pour un jour fixe"
 output: html_document
 date: "2023-02-24"
 ---
@@ -7,6 +7,13 @@ date: "2023-02-24"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Description
+Dans cette tache l'objectif est d'obtenir la matrice de dependance pour un jour choisit. Pour visualiser les differents flux survenu au cours de differentes heures de la journée :
+
+- Selectionner un jour 
+- Creer la matrice de dépendance pour differents heures de la journée y compris l'heure de pointe
+- Afficher la carte de flux pour les heures selectionnées
+
 ## 1. Load packages
 
 ```{r loadlib,}
@@ -20,8 +27,8 @@ library(tidyr)
 
 ## 2. Load data 
 ```{r loadData}
-heetchPoints <-readRDS("data/heetchmarchcrop.Rds")
-casaNeib <-st_read("data/casaneib.geojson") 
+heetchPoints <-readRDS("DATA/heetchmarchcrop.Rds")
+casaNeib <-st_read("DATA/casaneib.geojson") 
 ```
 
 ## 3. Projetion les objets spatiaux 
@@ -33,6 +40,7 @@ heetchPointsProj <-st_transform(heetchPoints, crs=26191)
 
 ## 4. Créer la section du 1er Mars
 
+Ici on fixe le jour au 1er Mars
 ```{r heetchM1Proj}
 heetchPointsProj$Day <-day(heetchPointsProj$location_at_local_time)
 heetchPointsProj$Hour <-hour(heetchPointsProj$location_at_local_time)
@@ -165,7 +173,7 @@ arrows(selecFlows$XORI,
 ## 10. Construire la matrice OD (origine-destination) pour le 1er Mars entre 18H et 19H du matin avec le nombre de drivers
 
 ```{r OD1819}
-OD1819 <-mainNeibwide %>%         c 
+OD1819 <-mainNeibwide %>% 
   group_by(H18,H19) %>% 
   summarize(NB=n()) %>% 
   filter(!is.na(H18) & !is.na(H19))%>% 
@@ -205,7 +213,7 @@ arrows(selecFlows$XORI,
 
 # 11. Matrice OD (origine-destination) pour le 1er Mars entre 21H et 22H (heure de pointe) avec le nombre de drivers
 
-```{r OD1819}
+```{r OD2122}
 OD2122 <-mainNeibwide %>% 
   group_by(H21,H22) %>% 
   summarize(NB=n()) %>% 
@@ -220,17 +228,17 @@ coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
 # pour avoir les coordonnées des centroides
 class(coordCentroids)
 
-OD2122$XORI <-coordCentroids$X[OD1819$ORI]
-OD2122$XDES <-coordCentroids$X[OD1819$DES]
-OD2122$YORI <-coordCentroids$Y[OD1819$ORI]
-OD2122$YDES <-coordCentroids$Y[OD1819$DES]
+OD2122$XORI <-coordCentroids$X[OD2122$ORI]
+OD2122$XDES <-coordCentroids$X[OD2122$DES]
+OD2122$YORI <-coordCentroids$Y[OD2122$ORI]
+OD2122$YDES <-coordCentroids$Y[OD2122$DES]
 
 head(OD2122)
 ```
 
 - Afficher la carte
 
-```{r OD1819Map}
+```{r OD2122Map}
 selecFlows <-OD2122 %>% filter(NB>2)
 plot(casaNeibProj$geometry, col="grey80", border ="grey30")
 arrows(selecFlows$XORI,
@@ -245,7 +253,7 @@ arrows(selecFlows$XORI,
 ```
 # 12. Matrice OD (origine-destination) pour le 1er Mars entre 22H et 23H (1h apres heure de pointe) avec le nombre de drivers
 
-```{r OD1819}
+```{r OD2223}
 OD2223 <-mainNeibwide %>% 
   group_by(H22,H23) %>% 
   summarize(NB=n()) %>% 
@@ -260,17 +268,17 @@ coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
 # pour avoir les coordonnées des centroides
 class(coordCentroids)
 
-OD2223$XORI <-coordCentroids$X[OD1819$ORI]
-OD2223$XDES <-coordCentroids$X[OD1819$DES]
-OD2223$YORI <-coordCentroids$Y[OD1819$ORI]
-OD2223$YDES <-coordCentroids$Y[OD1819$DES]
+OD2223$XORI <-coordCentroids$X[OD2223$ORI]
+OD2223$XDES <-coordCentroids$X[OD2223$DES]
+OD2223$YORI <-coordCentroids$Y[OD2223$ORI]
+OD2223$YDES <-coordCentroids$Y[OD2223$DES]
 
 head(OD2223)
 ```
 
 - Afficher la carte
 
-```{r OD1819Map}
+```{r OD2223Map}
 selecFlows <-OD2223 %>% filter(NB>2)
 plot(casaNeibProj$geometry, col="grey80", border ="grey30")
 arrows(selecFlows$XORI,
@@ -283,3 +291,5 @@ arrows(selecFlows$XORI,
        code=2)
 
 ```
+
+Remarque: On constate à travers les differents graphique que le flux est plus important au tour de trois points comme on peut le voir sur le carte. Mais aussi que les flux deviennent de plus en plus important dans les heures du soir au alentour de 22H qui est donc veritablement l'heure de pointe.

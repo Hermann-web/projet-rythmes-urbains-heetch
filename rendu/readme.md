@@ -29,12 +29,14 @@ On organisons le travail en 2 parties. La première identifie l'heure de pointe 
 
 
 ### Determiner une heure de pointe par quartier
-- les details sont dans le fichier: [task1.Rmd](./Mapping_Peak_Hours/main.Rmd)
+- les details sont dans le fichier: [task1.Rmd](./Mapping_Peak_Hours/main.Rmd) avec une vue [html](./Mapping_Peak_Hours/)
+![](res/map.png)
+Nombre de points en fonction du quartier
 
 ## Partie 2: Determiner les flux 
 
 ### Task1
-- les details sont dans le fichier: [task1](./OD/task1.Rmd) 
+- les details sont dans le fichier: [OD](./OD/OD_jour.Rmd) avec une vue [html](./OD/OD_jour.html)
 
 ### Task2
-- les details sont dans le fichier: task2](./OD/task2.Rmd)
+- les details sont dans le fichier: [](./OD/OD_week.Rmd) avec une vue [html](./OD/OD_week.html)
