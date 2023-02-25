@@ -1,0 +1,164 @@
+---
+title: "Heetch Casablanca"
+author: "Hadrien Commenges"
+date: "Janvier 2023"
+output: 
+  html_document: 
+    highlight: kate
+    theme: simplex
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objectifs
+
+- Produire une analyse à partir de données individuelles de type "trace numérique"
+- Connaître les fondamentaux de l'analyse de données spatiales
+- Réfléchir concrètement sur les possibilités techniques et les enjeux sociaux liés à de telles analyses
+
+## Description
+
+Heetch est une start-up française qui organise des services de VTC dans plusieurs villes du monde dont Casablanca. Les données sont fournies pour Casablanca pour le mois de mars 2019 avec un point GPS par minute et par véhicule. Ces données comportent un identifiant chauffeur (`driver_id`), une variable temporelle (`location_at_local_time`) et des coordonnées géographiques (`longitude` et `latitude`).
+
+Des données supplémentaires sont ajoutées pour l'analyse : extraction de données OpenStreetMap directement depuis R et découpage administratif du Maroc téléchargé sur le [site GADM](https://gadm.org/data.html).
+
+## Préparation des données
+
+Charger les packages nécessaires.
+
+```{r, message=FALSE, warning=FALSE}
+library(sf)           # manipulation des données spatiales
+library(osmdata)      # extraction des données OpenStreetMap
+library(leaflet)      # visualisation interactive avec leaflet
+library(mapsf)        # cartographie statistique
+library(lubridate)    # manipulation des dates
+library(tidyverse)    # méta-package d'Hadley Wickham
+```
+
+Charger les données : découpage adminisratif et données Heetch.
+
+```{r}
+casaBound <- st_read("DATA/casabound.geojson")
+heetchPoints <- readRDS("DATA/heetchmarchcrop.Rds")
+osmFeatures <- readRDS("DATA/osmfeatures.Rds")
+```
+
+Télécharger les données OSM (routes principales, tramway). **ATTENTION**, ce code est présenté uniquement pour montrer comment faire. **Il n'est pas nécessaire de l'exécuter** parce que ce travail est déjà fait et le résultat est stocké dans le fichier `osmfeatures.Rds`.
+
+```{r, eval=FALSE}
+osmRoads <- opq(bbox = st_bbox(casaBound)) %>%
+  add_osm_feature(key = "highway", 
+                  value = c("motorway", "trunk", "primary", "secondary", "tertiary")) %>% 
+  osmdata_sf()
+
+osmTram <- opq(bbox = st_bbox(casaBound)) %>%
+  add_osm_feature(key = "railway", 
+                  value = "tram") %>% 
+  osmdata_sf()
+
+osmTramstop <- opq(bbox = st_bbox(casaBound)) %>%
+  add_osm_feature(key = "railway", 
+                  value = "tram_stop") %>% 
+  osmdata_sf()
+```
+
+Cartographier les données.
+
+```{r}
+plot(casaBound$geometry, col = "grey")
+plot(osmFeatures$roads$geometry, col = "grey40", add = TRUE)
+plot(osmFeatures$tramway$geometry, col = "firebrick", lwd = 2, add = TRUE)
+plot(osmFeatures$tramstop$geometry, col = "firebrick", pch = 20, add = TRUE)
+```
+
+
+## Propositions d'analyse
+
+Création de variables temporelles (temps POSIX et découpé).
+
+```{r}
+# temps POSIX (as.POSIXct() ou fonctions de lubridate)
+heetchPoints$DATE <- ymd_hms(heetchPoints$location_at_local_time, tz = "Africa/Casablanca")
+heetchPoints$DATE[1] %>% as.numeric()
+
+# année, mois, jour
+heetchPoints$YMD <- substr(heetchPoints$location_at_local_time, 1, 10)
+heetchPoints$HMS <- substr(heetchPoints$location_at_local_time, 12, 19)
+heetchPoints$HM <- substr(heetchPoints$location_at_local_time, 12, 16)
+heetchPoints$HOUR <- substr(heetchPoints$location_at_local_time, 12, 13)
+```
+
+Sélection d'un seul jour (par exemple le 1r mars 2019).
+
+```{r}
+heetchM1 <- heetchPoints %>% filter(YMD == "2019-03-01")
+```
+
+
+Création d'un carroyage sur l'espace d'étude.
+
+```{r}
+casaGridgeom <- st_make_grid(x = heetchM1, n = 40)
+casaGrid <- st_sf(IDGRID = seq(1, length(casaGridgeom), 1),
+                  geometry = casaGridgeom)
+
+
+plot(casaGrid$geometry, col = "grey", border = "white")
+plot(heetchM1$geometry, pch = 20, cex = 0.3, col = "firebrick", add = TRUE)
+```
+
+Dénombrement des présences dans les carreaux.
+
+```{r}
+pointsInGrid <- st_contains(x = casaGrid, y = heetchM1)
+casaGrid$NPTS <- sapply(X = pointsInGrid, FUN = length)
+
+mf_map(x = casaGrid, 
+       var = "NPTS", 
+       type = "choro",
+       breaks = "quantile", 
+       nbreaks = 10, 
+       pal = rev(hcl.colors(n = 10, palette = "Reds")))
+
+plot(osmFeatures$roads$geometry, col = "grey30", lwd = 0.6, add = TRUE)
+```
+
+
+## Concevoir et implémenter des fonctions qui renseignent sur le trafic routier
+
+**Exemple:** graphique de densité carroyée.
+
+```{r}
+plot_density <- function(grid, points){
+  pointsInGrid <- st_contains(x = grid, y = points)
+  grid$NPTS <- sapply(X = pointsInGrid, FUN = length)
+  mf_map(x = grid, 
+         var = "NPTS", 
+         type = "choro",
+         breaks = "quantile", 
+         nbreaks = 10, 
+         pal = rev(hcl.colors(n = 10, palette = "Reds")))
+}
+
+```
+
+
+## Instructions pour l'exercice évalué
+
+### Contenu de l'exercice
+
+Concevoir et implémenter des méthodes qui permettent, à partir d'une flotte de VTC, de produire des indicateurs de trafic routier et/ou des indicateurs sur la mobilité urbaine en général: densité, vitesse, congestion, rythmes urbains, sens dominants des flux, etc.
+
+
+### Rendu
+
+Le rendu est un fichier qui contient à la fois le code de la méthode de détection et les commentaires qui permettent de comprendre ce code. Il peut s'agir d'un fichier RMarkdown (Rmd) ou d'un fichier R commenté.
+
+Rendu par mail <hadrien.commenges@univ-paris1.fr>, au plus tard le **vendredi 17 février**.
+
+
+
