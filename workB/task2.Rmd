@@ -1,0 +1,413 @@
+---
+title: "Task2: Matrice O-D weekend vs jour ouvrable"
+output: html_document
+date: "2023-02-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## 1. Load packages
+
+```{r lib}
+library(dplyr) 
+library(sf)
+library(leaflet)
+library(lubridate)
+library(mapsf)
+library(tidyr)
+```
+
+## 2. Load data 
+
+```{r data}
+
+heetchPoints <-readRDS("DATA/heetchmarchcrop.Rds")
+casaNeib <-st_read("DATA/casaneib.geojson") 
+```
+## 3. Projetion les objets spatiaux
+
+```{r spaceObject}
+  casaNeibProj <-st_transform(casaNeib, crs=26191)
+  heetchPointsProj <-st_transform(heetchPoints, crs=26191)
+```
+
+
+## 4. Créer la section du 1er au 7 Mars premiere semaine de Mars 2019 
+
+- Conversion Day, Hour, year 
+
+```{r selection,} 
+heetchPointsProj$Day <-day(heetchPointsProj$location_at_local_time)
+heetchPointsProj$Hour <-hour(heetchPointsProj$location_at_local_time)
+heetchPointsProj$year <-year(heetchPointsProj$location_at_local_time)
+```
+
+### 4.1 Jours ouvrable 1-5
+
+```{r heetchM1ProjWeek,} 
+
+heetchM1ProjWeek <-heetchPointsProj %>% 
+  filter(Day>0 & Day<6 )
+class(heetchM1ProjWeek)
+
+```
+
+### 4.2 jours du weekend 6-7 
+
+```{r heetchM1ProjWeekend,} 
+
+heetchM1ProjWeekend <-heetchPointsProj %>% 
+  filter(Day>5 & Day<8 )
+  
+```
+
+## 5. Intersection des points x et les quartiers y 
+
+```{r union,}
+
+casaNeibUnion <-st_union(casaNeibProj)
+
+```
+
+### 5.1 week
+
+```{r addNeibWeek,}
+
+ptsInCasaWeek <-st_contains(x=casaNeibUnion, y=heetchM1ProjWeek)
+
+selectPtsInCasaWeek <-unlist(ptsInCasaWeek)
+
+heetchM1CropProjWeek <-heetchM1ProjWeek[selectPtsInCasaWeek,]
+ptsInNeibWeek <-st_within(x=heetchM1ProjWeek, y=casaNeibProj) %>% 
+  unlist() 
+
+heetchM1CropProjWeek$NEIB <-ptsInNeibWeek
+heetchM1CropProjWeek$NEIB <-ptsInNeibWeek
+
+```
+
+### 5.1 weekend
+
+```{r addNeibWeekend,}
+
+ptsInCasaWeekend <-st_contains(x=casaNeibUnion, y=heetchM1ProjWeekend)
+
+selectPtsInCasaWeekend <-unlist(ptsInCasaWeekend)
+
+heetchM1CropProjWeekend <-heetchM1ProjWeekend[selectPtsInCasaWeekend,]
+ptsInNeibWeekend <-st_within(x=heetchM1ProjWeekend, y=casaNeibProj) %>% 
+  unlist() 
+
+heetchM1CropProjWeekend$NEIB <-ptsInNeibWeekend
+heetchM1CropProjWeekend$NEIB <-ptsInNeibWeekend
+```
+
+## 6. Grouper par jour/heure/ par identifiant chauffeur et par quartier
+
+### 6.1 week
+
+```{r groupeWeek,}
+
+nestedPtsWeek <-heetchM1CropProjWeek %>% 
+  st_drop_geometry() %>% 
+  group_by(Day,Hour,NEIB, driver_id) %>% 
+  summarize(NBPTS=n())
+
+```
+
+### 6.2 weekend
+
+```{r groupeWeekend,}
+
+nestedPtsWeekend <-heetchM1CropProjWeekend %>% 
+  st_drop_geometry() %>% 
+  group_by(Day,Hour,NEIB, driver_id) %>% 
+  summarize(NBPTS=n())
+
+```
+
+## 7. Selectionner le quartier principal pour chaque chauffeur à chaque jour et heure
+
+### 7.1 week
+
+```{r mainNeibWeek,} 
+
+mainNeibWeek <-nestedPtsWeek %>% 
+  group_by(Day, driver_id, Hour) %>% 
+  arrange(desc(NBPTS)) %>% 
+  slice(1)
+
+```
+
+### 7.2 weekend
+
+```{r mainNeibWeekend,}
+
+mainNeibWeekend <-nestedPtsWeekend %>% 
+  group_by(Day, driver_id, Hour) %>% 
+  arrange(desc(NBPTS)) %>% 
+  slice(1)
+
+```
+## 8. Construire la matrice OD (origine-destination) semaine du 1er au 7 Mars entre 7H et 8H du matin
+
+### 8.1 week
+
+```{r OD78Week,} 
+
+mainNeibwideWeek <-mainNeibWeek %>% 
+  select(driver_id,Day,Hour,NEIB) %>% 
+  pivot_wider(names_from=Hour, 
+              values_from=NEIB,
+              names_prefix="H",
+              values_fill=NA)
+
+OD78Week <-mainNeibwideWeek %>% 
+  group_by(H7,H8) %>% 
+  summarize(NB=n()) %>% 
+  filter(!is.na(H7) & !is.na(H8))%>% 
+  rename(ORI=H7, DES=H8)
+
+OD78Week$ORINAME <-casaNeib$NAME_4[OD78Week$ORI]
+OD78Week$DESNAME <-casaNeib$NAME_4[OD78Week$DES]
+
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+
+class(coordCentroids)
+
+OD78Week$XORI <-coordCentroids$X[OD78Week$ORI]
+OD78Week$XDES <-coordCentroids$X[OD78Week$DES]
+OD78Week$YORI <-coordCentroids$Y[OD78Week$ORI]
+OD78Week$YDES <-coordCentroids$Y[OD78Week$DES]
+```
+
+- Afficher la carte week
+
+```{r OD78WeekMap,} 
+
+selecFlowsWeek <-OD78Week %>% filter(NB>2)
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+arrows(selecFlowsWeek$XORI,
+       selecFlowsWeek$YORI,
+       selecFlowsWeek$XDES,
+       selecFlowsWeek$YDES,
+       col="chocolate",
+       lwd=2,
+       length=0.1,
+       code=2)
+```
+
+### 8.2 weekend
+
+```{r OD78Weekend,} 
+
+mainNeibwideWeekend <-mainNeibWeekend %>% 
+  select(driver_id,Day,Hour,NEIB) %>% 
+  pivot_wider(names_from=Hour, 
+              values_from=NEIB,
+              names_prefix="H",
+              values_fill=NA)
+
+OD78Weekend <-mainNeibwideWeekend %>% 
+  group_by(H7,H8) %>% 
+  summarize(NB=n()) %>% 
+  filter(!is.na(H7) & !is.na(H8))%>% 
+  rename(ORI=H7, DES=H8)
+
+OD78Weekend$ORINAME <-casaNeib$NAME_4[OD78Weekend$ORI]
+OD78Weekend$DESNAME <-casaNeib$NAME_4[OD78Weekend$DES]
+
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+class(coordCentroids)
+
+OD78Weekend$XORI <-coordCentroids$X[OD78Weekend$ORI]
+OD78Weekend$XDES <-coordCentroids$X[OD78Weekend$DES]
+OD78Weekend$YORI <-coordCentroids$Y[OD78Weekend$ORI]
+OD78Weekend$YDES <-coordCentroids$Y[OD78Weekend$DES]
+
+```
+
+- Afficher la carte weekend
+
+```{r OD78WeekendMap, echo = FALSE} 
+
+selecFlowsWeekend <-OD78Weekend %>% filter(NB>2)
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+arrows(selecFlowsWeekend$XORI,
+       selecFlowsWeekend$YORI,
+       selecFlowsWeekend$XDES,
+       selecFlowsWeekend$YDES,
+       col="chocolate",
+       lwd=2,
+       length=0.1,
+       code=2)
+```
+
+## 9. Construire la matrice OD (origine-destination) semaine du 1er au 7 Mars entre 12H et 13H du matin
+
+### 9.1 Week
+
+```{r OD1213Week,} 
+
+OD1213Week <-mainNeibwideWeek %>% 
+  group_by(H12,H13) %>% 
+  summarize(NB=n()) %>% 
+  filter(!is.na(H12) & !is.na(H13))%>% 
+  rename(ORI=H12, DES=H13)
+
+OD1213Week$ORINAME <-casaNeib$NAME_4[OD1213Week$ORI]
+OD1213Week$DESNAME <-casaNeib$NAME_4[OD1213Week$DES]
+
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+class(coordCentroids)
+
+OD1213Week$XORI <-coordCentroids$X[OD1213Week$ORI]
+OD1213Week$XDES <-coordCentroids$X[OD1213Week$DES]
+OD1213Week$YORI <-coordCentroids$Y[OD1213Week$ORI]
+OD1213Week$YDES <-coordCentroids$Y[OD1213Week$DES]
+
+```
+- Afficher la carte week 12h -13h
+```{r OD1213WeekMap, echo = FALSE}
+
+selecFlowsWeek <-OD1213Week %>% filter(NB>2)
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+arrows(selecFlowsWeek$XORI,
+       selecFlowsWeek$YORI,
+       selecFlowsWeek$XDES,
+       selecFlowsWeek$YDES,
+       col="chocolate",
+       lwd=2,
+       length=0.1,
+       code=2)
+```
+
+### 9.2 Weekend
+
+```{r OD1213Weekend,} 
+
+OD1213Weekend <-mainNeibwideWeekend %>% 
+  group_by(H12,H13) %>% 
+  summarize(NB=n()) %>% 
+  filter(!is.na(H12) & !is.na(H13))%>% 
+  rename(ORI=H12, DES=H13)
+
+OD1213Weekend$ORINAME <-casaNeib$NAME_4[OD1213Weekend$ORI]
+OD1213Weekend$DESNAME <-casaNeib$NAME_4[OD1213Weekend$DES]
+
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+class(coordCentroids)
+
+OD1213Weekend$XORI <-coordCentroids$X[OD1213Weekend$ORI]
+OD1213Weekend$XDES <-coordCentroids$X[OD1213Weekend$DES]
+OD1213Weekend$YORI <-coordCentroids$Y[OD1213Weekend$ORI]
+OD1213Weekend$YDES <-coordCentroids$Y[OD1213Weekend$DES]
+```
+
+- Afficher la carte Weekend 12h -13h
+
+```{r OD1213WeekendMap, echo = FALSE} 
+
+selecFlowsWeekend <-OD1213Weekend %>% filter(NB>2)
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+arrows(selecFlowsWeekend$XORI,
+       selecFlowsWeekend$YORI,
+       selecFlowsWeekend$XDES,
+       selecFlowsWeekend$YDES,
+       col="chocolate",
+       lwd=2,
+       length=0.1,
+       code=2)
+```
+
+## 10. Construire la matrice OD (origine-destination) semaine du 1er au 7 Mars entre 18H et 19H du matin
+
+### 10.1 Week
+
+```{r OD1819Week, }
+
+OD1819Week <-mainNeibwideWeek %>% 
+  group_by(H18,H19) %>% 
+  summarize(NB=n()) %>% 
+  filter(!is.na(H18) & !is.na(H19))%>% 
+  rename(ORI=H18, DES=H19)
+
+OD1819Week$ORINAME <-casaNeib$NAME_4[OD1819Week$ORI]
+OD1819Week$DESNAME <-casaNeib$NAME_4[OD1819Week$DES]
+
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+class(coordCentroids)
+
+OD1819Week$XORI <-coordCentroids$X[OD1819Week$ORI]
+OD1819Week$XDES <-coordCentroids$X[OD1819Week$DES]
+OD1819Week$YORI <-coordCentroids$Y[OD1819Week$ORI]
+OD1819Week$YDES <-coordCentroids$Y[OD1819Week$DES]
+```
+
+- Afficher la carte Week
+
+```{r OD1819WeekMap, echo = FALSE} 
+
+selecFlowsWeek <-OD1819Week %>% filter(NB>2)
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+arrows(selecFlowsWeek$XORI,
+       selecFlowsWeek$YORI,
+       selecFlowsWeek$XDES,
+       selecFlowsWeek$YDES,
+       col="chocolate",
+       lwd=2,
+       length=0.1,
+       code=2)
+```
+
+### 10.2 Weekend
+
+```{r OD1819Weekend,} 
+
+OD1819Weekend <-mainNeibwideWeekend %>% 
+  group_by(H18,H19) %>% 
+  summarize(NB=n()) %>% 
+  filter(!is.na(H18) & !is.na(H19))%>% 
+  rename(ORI=H18, DES=H19)
+
+OD1819Weekend$ORINAME <-casaNeib$NAME_4[OD1819Weekend$ORI]
+OD1819Weekend$DESNAME <-casaNeib$NAME_4[OD1819Weekend$DES]
+
+polCentroids <- st_centroid(casaNeibProj) # pour avoir les centroides
+coordCentroids <-st_coordinates((polCentroids)) %>%as_data_frame()
+# pour avoir les coordonnées des centroides
+class(coordCentroids)
+
+OD1819Weekend$XORI <-coordCentroids$X[OD1819Weekend$ORI]
+OD1819Weekend$XDES <-coordCentroids$X[OD1819Weekend$DES]
+OD1819Weekend$YORI <-coordCentroids$Y[OD1819Weekend$ORI]
+OD1819Weekend$YDES <-coordCentroids$Y[OD1819Weekend$DES]
+```
+- Afficher la carte Weekend 
+```{r OD1819WeekendMap, echo = FALSE} 
+
+selecFlowsWeek <-OD1819Week %>% filter(NB>2)
+plot(casaNeibProj$geometry, col="grey80", border ="grey30")
+arrows(selecFlowsWeekend$XORI,
+       selecFlowsWeekend$YORI,
+       selecFlowsWeekend$XDES,
+       selecFlowsWeekend$YDES,
+       col="chocolate",
+       lwd=2,
+       length=0.1,
+       code=2)
+
+```
