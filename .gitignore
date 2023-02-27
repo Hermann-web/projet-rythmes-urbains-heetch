@@ -1,6 +1,6 @@
 data/heetchmarchcrop.Rds
 data/heetchmarchcropwithneib.Rds
-*.html
+#*.html
 
 # History files
 .Rhistory
